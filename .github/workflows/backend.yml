@@ -2,16 +2,16 @@ name: Backend
 
 on:
   push:
-    paths: ["backend/**", "database/**", ".github/workflows/backend.yml"]
+    paths: ["truyen/backend/**", "database/**", ".github/workflows/backend.yml"]
   pull_request:
-    paths: ["backend/**", "database/**", ".github/workflows/backend.yml"]
+    paths: ["truyen/backend/**", "database/**", ".github/workflows/backend.yml"]
 
 jobs:
   test:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: backend
+        working-directory: truyen/backend
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
