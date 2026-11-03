@@ -1,0 +1,76 @@
+# Hạ tầng phụ cho môi trường dev. Mật khẩu ở đây chỉ dùng trên máy local.
+# MySQL không nằm ở đây: dùng MySQL80 trên máy, quản lý bằng MySQL Workbench (xem thư mục database).
+name: truyentranh
+
+services:
+  redis:
+    image: redis:7.4-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  rabbitmq:
+    image: rabbitmq:4.1-management
+    environment:
+      RABBITMQ_DEFAULT_USER: truyentranh
+      RABBITMQ_DEFAULT_PASS: truyentranh_dev
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+
+  minio:
+    # Image minio/minio trên Docker Hub không còn tải được, dùng bản build của Chainguard
+    image: cgr.dev/chainguard/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: truyentranh
+      MINIO_ROOT_PASSWORD: truyentranh_dev
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  # Chạy cả backend trong Docker: docker compose --profile app up -d --build
+  # MySQL vẫn là MySQL80 trên máy, truy cập qua host.docker.internal.
+  app:
+    profiles: ["app"]
+    build: ./backend
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      mailpit:
+        condition: service_started
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:mysql://host.docker.internal:3306/comic_web?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_MAIL_HOST: mailpit
+      APP_STORAGE_ENDPOINT: http://minio:9000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8080:8080"
+
+volumes:
+  minio-data:
